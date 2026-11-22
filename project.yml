@@ -49,6 +49,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dmikaya.MessageHub.Connector
         PRODUCT_NAME: MessageSift Connector
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
   ConnectorTests:
     type: bundle.unit-test
     platform: macOS

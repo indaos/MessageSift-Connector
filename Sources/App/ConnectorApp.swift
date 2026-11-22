@@ -19,7 +19,7 @@ struct ConnectorApp: App {
         }
         .windowResizability(.contentSize)
 
-        MenuBarExtra("MessageSift Connector", systemImage: connector.paused ? "pause.circle" : "arrow.left.arrow.right.circle") {
+        MenuBarExtra("MessageSift Connector", systemImage: connector.paused ? "powerplug" : "powerplug.fill") {
             StatusView().environmentObject(connector).frame(width: 420).padding(16)
         }
         .menuBarExtraStyle(.window)
