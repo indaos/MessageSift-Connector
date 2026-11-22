@@ -10,6 +10,13 @@ It runs as a menu bar app with a small status window.
 - **No network:** it makes no network connections of any kind.
 - **No AI**, no analytics, no updates, no accounts.
 
+## Install
+
+1. Download **MessageSift Connector.dmg** from the [latest release](https://github.com/indaos/MessageSift-Connector/releases/latest).
+2. Open it and drag **MessageSift Connector** onto **Applications**.
+3. Open MessageSift Connector from Applications. It is signed with Developer ID and notarized by Apple.
+4. Give it Full Disk Access (steps below). It then shares in the background; turn on **Open at login** to keep it running.
+
 ## What it reads (read-only)
 
 | Data | Path | What is used |
@@ -76,6 +83,10 @@ The shared App Group (`5PMP974V72.com.dmikaya.MessageHub.store`) belongs to Mess
 another team runs and can be audited, but macOS won't let it write into MessageSift's folder.
 
 Tests use synthetic fixtures only (no real messages).
+
+Releases: export the archive for Developer ID (Xcode › Organizer › Distribute App › Direct Distribution › Export),
+then `Scripts/make_dmg.sh "/path/to/MessageSift Connector.app"`, notarize and staple the DMG (commands in the script),
+and attach it to a GitHub release. `swift Scripts/make_icon.swift` redraws the app icon.
 
 ## Code
 
