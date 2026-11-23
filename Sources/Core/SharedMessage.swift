@@ -3,7 +3,7 @@ import Foundation
 /// One shared item, in exactly the JSON shape MessageSift (App Store edition) decodes as `HubMessage`.
 /// Every non-optional key must be present, or MessageSift can't read the file.
 struct SharedMessage: Codable, Equatable {
-    enum Source: String, Codable { case slack, whatsapp, otherApps }
+    enum Source: String, Codable { case slack, whatsapp, otherApps, github, gitlab, jira, linear, teams, outlook }
 
     var id: String
     var source: Source
@@ -20,6 +20,17 @@ struct SharedMessage: Codable, Equatable {
     var conversationID: String
     var context = ""
     var link: URL?
+    var dueDate: Date?
+    var slackTeam: String?
+    var slackChannel: String?
+    var slackTs: String?
+    var slackThreadTs: String?
+}
+
+/// Network status for MessageSift: which services have a key here and their last error (no keys, no content).
+struct ConnectorStatus: Codable, Equatable {
+    var configured: [String]
+    var errors: [String: String]
 }
 
 enum SharedFile {
@@ -44,6 +55,15 @@ enum SharedFile {
     static func write(_ messages: [SharedMessage], to folder: URL) throws {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try encode(messages).write(to: folder.appendingPathComponent(fileName), options: .atomic)
+    }
+
+    static let statusFileName = "connector-status.json"
+
+    static func writeStatus(_ status: ConnectorStatus, to folder: URL) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try encoder.encode(status).write(to: folder.appendingPathComponent(statusFileName), options: .atomic)
     }
 
     static func delete(in folder: URL) throws {

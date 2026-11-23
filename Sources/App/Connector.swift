@@ -48,31 +48,49 @@ final class Connector: ObservableObject {
         }
     }
 
-    /// Every 3 minutes and after a database change: check access, then share.
+    /// Every 3 minutes and after a database change: check access, then share. Network services every 10 minutes.
     func tick() {
         let now = Sources.hasFullDiskAccess
         if now && !hasAccess { accessArrived = true }
         hasAccess = now
         if hasAccess { notifyingApps = Sources.notifyingApps() }
         share()
+        Task { if await NetworkSources.shared.readIfDue() { share() } }
     }
 
+    /// After a key changed in Services: read the services again at once, then share.
+    func servicesChanged() {
+        Task {
+            await NetworkSources.shared.readIfDue(force: true)
+            share()
+        }
+    }
+
+    /// Local items need Full Disk Access; network items (keys in Services) don't.
     func share() {
-        guard hasAccess, !paused else { return }
+        guard !paused else { return }
+        let network = NetworkSources.shared
+        guard hasAccess || !NetworkSources.configured.isEmpty else { return }
         guard let folder = SharedFile.folder else { problem = "MessageSift's shared folder is not available."; return }
         let since = Date().addingTimeInterval(-Double(Self.days) * 86_400)
         let apps = otherApps
+        let local = hasAccess
+        let networkItems = network.items.compactMap(SharedMessage.init)
+        let status = network.status
         Task.detached(priority: .utility) {
-            var items: [SharedMessage] = []
-            let rows = Sources.whatsAppRows(since: since)
+            var items: [SharedMessage] = networkItems
+            let rows = local ? Sources.whatsAppRows(since: since) : nil
             if let rows { items += WhatsAppParser.messages(rows, me: Sources.whatsAppIdentity()) }
             let names = Dictionary(uniqueKeysWithValues: apps.map { ($0, Connector.appName($0)) })
-            items += Sources.notificationRecords(since: since).compactMap { r -> SharedMessage? in
+            items += (local ? Sources.notificationRecords(since: since) : []).compactMap { r -> SharedMessage? in
                 guard let m = NotificationParser.message(r, otherApps: apps, appName: { names[$0] ?? $0 }) else { return nil }
                 // The WhatsApp store is complete; its notifications would only repeat it.
                 return rows != nil && m.source == .whatsapp ? nil : m
             }
-            let result = Result { try SharedFile.write(items, to: folder) }
+            let result = Result {
+                try SharedFile.write(items, to: folder)
+                try SharedFile.writeStatus(status, to: folder)
+            }
             let counts = Dictionary(grouping: items, by: \.source).mapValues(\.count)
             await MainActor.run {
                 switch result {

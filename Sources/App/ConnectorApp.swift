@@ -4,6 +4,7 @@ import SwiftUI
 @main
 struct ConnectorApp: App {
     @StateObject private var connector = Connector.shared
+    @NSApplicationDelegateAdaptor(ConnectorAppDelegate.self) private var appDelegate
 
     init() {
         // `--status`: Full Disk Access and what the shared file holds (counts and time only), then quit.
@@ -26,6 +27,20 @@ struct ConnectorApp: App {
     }
 }
 
+/// messagesift-connector://service/<name> from MessageSift opens Services on that service.
+final class ConnectorAppDelegate: NSObject, NSApplicationDelegate {
+    func application(_ application: NSApplication, open urls: [URL]) {
+        Task { @MainActor in
+            Connector.shared.start()
+            for url in urls { ServicesWindow.show(Service(link: url)) }
+        }
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        Task { @MainActor in Connector.shared.start() }
+    }
+}
+
 struct StatusView: View {
     @EnvironmentObject private var c: Connector
     @Environment(\.openWindow) private var openWindow
@@ -36,7 +51,7 @@ struct StatusView: View {
                 Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 36, height: 36)
                 VStack(alignment: .leading) {
                     Text("MessageSift Connector").font(.headline)
-                    Text("Shares Mac notifications and WhatsApp with MessageSift from the App Store. Nothing leaves this Mac.")
+                    Text("Shares Mac notifications, WhatsApp and, with your keys, Slack, GitHub, GitLab, Jira, Linear, Teams and Outlook with MessageSift. Keys stay in the Connector.")
                         .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -51,6 +66,7 @@ struct StatusView: View {
                 shared
             }
             if let p = c.problem { Text(p).font(.caption).foregroundStyle(.red) }
+            ServicesSummary()
             Divider()
             Toggle("Open at login", isOn: Binding(get: { c.launchAtLogin }, set: { c.setLaunchAtLogin($0) }))
             HStack {
@@ -85,6 +101,21 @@ struct StatusView: View {
             .font(.callout)
             Button("Delete Shared Data", role: .destructive) { c.deleteSharedData() }
                 .help("Removes the shared file from MessageSift's folder and pauses sharing.")
+        }
+    }
+}
+
+/// The network services with a key, and the button to the Services window.
+struct ServicesSummary: View {
+    @ObservedObject private var network = NetworkSources.shared
+
+    var body: some View {
+        HStack {
+            let names = Service.allCases.filter(\.isConfigured).map(\.title)
+            Text(names.isEmpty ? "No services with a key yet." : "With keys: \(names.joined(separator: ", "))")
+                .font(.callout).foregroundStyle(.secondary).lineLimit(2)
+            Spacer()
+            Button("Services…") { ServicesWindow.show() }
         }
     }
 }

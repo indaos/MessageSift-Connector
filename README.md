@@ -7,7 +7,9 @@ chat store. The Connector can, with Full Disk Access. It copies recent items int
 It runs as a menu bar app with a small status window.
 
 - **Read-only:** it never writes to the databases it reads.
-- **No network:** it makes no network connections of any kind.
+- **Network only for the services you add:** without keys it makes no network connections. With a key in
+  **Services**, it reads that service's own API (Slack, GitHub, GitLab, Jira, Linear, Microsoft Graph for Teams and
+  Outlook) and nothing else. MessageSift itself has no network access.
 - **No AI**, no analytics, no updates, no accounts.
 
 ## Install
@@ -27,6 +29,25 @@ It runs as a menu bar app with a small status window.
 
 Databases are opened with `SQLITE_OPEN_READONLY`. Only the last 30 days are read.
 
+## Services (network, optional)
+
+Menu bar icon › **Services…** (MessageSift opens it on one service when you turn that source on).
+
+| Service | What you enter | What is read |
+| --- | --- | --- |
+| Slack | User token (`xoxp-`) | Direct messages, mentions, thread replies |
+| GitHub | Personal access token | Review requests, failed checks on your pull requests, mentions, assigned issues |
+| GitLab | Server (default gitlab.com) and personal access token (`read_api`) | Review and approval requests, mentions, failed pipelines, assigned issues |
+| Jira | Site URL, email, API token | Assigned open issues that are new, due soon or recently updated |
+| Linear | Personal API key | Assigned issues, unread mentions and comments |
+| Teams and Outlook | Your own Azure app (client ID) and a Microsoft sign-in | Teams chats, Outlook inbox |
+
+- **Check and Save** keeps a key only when the service accepts it.
+- Keys are kept in the Connector's own Keychain items (`com.dmikaya.MessageHub.Connector`). MessageSift never gets them.
+- Read every 10 minutes, last 14 days. Items go into the same shared file, with their service as the source.
+- A second small file, `connector-status.json`, tells MessageSift which services have a key and the last error
+  (no keys, no content).
+
 ## What it writes
 
 One file, in MessageSift's App Group folder:
@@ -34,19 +55,20 @@ One file, in MessageSift's App Group folder:
 `~/Library/Group Containers/5PMP974V72.com.dmikaya.MessageHub.store/connector-messages.json`
 
 - The last 30 days, at most 3,000 items, newest first.
-- Per item: id, source (`slack`, `whatsapp`, `otherApps`), sender, sender handle, title, text, date, read/answered/direct
+- Per item: id, source (`slack`, `whatsapp`, `otherApps`, `github`, `gitlab`, `jira`, `linear`, `teams`, `outlook`), sender, sender handle, title, text, date, read/answered/direct
   flags, conversation id, context (app name) and an app link (`whatsapp://`, `sgnl://`, …).
 - Written atomically (MessageSift never sees half a file), every 3 minutes and a few seconds after the databases change.
 
 Its own settings (Pause, chosen apps) are kept in its UserDefaults. It keeps no other copy of your data.
 
-## No network: how to check
+## Network: how to check
 
-- The code has no networking: `grep -rnE "URLSession|NWConnection|CFStream|socket\(|https?://" --include='*.swift' Sources`
-  finds nothing.
+- All network code is in `Sources/Network/` (copied from MessageSift's readers). Nothing else connects:
+  `grep -rnE "URLSession|NWConnection|CFStream|socket\(" --include='*.swift' Sources` finds only that folder.
+- Without keys in Services, nothing in `Sources/Network/` runs. A firewall such as LuLu or Little Snitch, or `nettop`,
+  shows no connections. With keys, it shows only the services you added.
 - The app is not sandboxed (Full Disk Access needs that), so there is no network entitlement to look for. Its only
   entitlement is the App Group shared with MessageSift (`Sources/App/Connector.entitlements`).
-- At run time, a firewall such as LuLu or Little Snitch, or `nettop`, shows no connections.
 
 ## Full Disk Access
 
