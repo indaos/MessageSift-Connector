@@ -2,7 +2,56 @@ import XCTest
 @testable import MessageSift_Connector
 
 final class NetworkTests: XCTestCase {
-    override func tearDown() { Keychain.testStore = [:] }
+    override func tearDown() {
+        Keychain.testStore = [:]
+        NetworkGate.revoke(Array(NetworkGate.allowedHosts))
+        NetworkGate.transport = { _ in throw URLError(.notConnectedToInternet) }
+    }
+
+    override func setUp() {
+        // Tests never reach the network: every allowed request is answered here.
+        NetworkGate.transport = { _ in throw URLError(.notConnectedToInternet) }
+    }
+
+    func testNoRequestGoesOutWithoutConsent() async throws {
+        var sent: [String] = []
+        NetworkGate.transport = { request in
+            sent.append(request.url?.host ?? "")
+            let body = Data(#"{"login":"kim"}"#.utf8)
+            return (body, HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+        }
+        Keychain.set("ghp-test", for: DevTool.github.tokenKey)
+        XCTAssertTrue(NetworkSources.configured.isEmpty, "a key alone is not enough: network is off")
+        do {
+            _ = try await DevToolsClient(tool: .github).test()
+            XCTFail("must not reach GitHub without consent")
+        } catch NetworkGate.GateError.notAllowed(let host) {
+            XCTAssertEqual(host, "api.github.com")
+        }
+        XCTAssertEqual(sent, [], "nothing went out")
+
+        NetworkGate.allow(NetworkGate.hosts(for: .github))
+        let connected = try await DevToolsClient(tool: .github).test()
+        XCTAssertEqual(connected, "Connected as kim")
+        XCTAssertEqual(sent, ["api.github.com"])
+        XCTAssertEqual(NetworkSources.configured, [.github])
+
+        // Another host (even with consent for GitHub) is refused.
+        do {
+            _ = try await URLSession.shared.data(for: URLRequest(url: URL(string: "https://example.com/x")!))
+            XCTFail("unlisted host")
+        } catch NetworkGate.GateError.notAllowed {}
+        XCTAssertEqual(sent, ["api.github.com"])
+
+        NetworkGate.revoke(NetworkGate.hosts(for: .github))
+        XCTAssertTrue(NetworkSources.configured.isEmpty)
+    }
+
+    func testHostsPerService() {
+        XCTAssertEqual(NetworkGate.hosts(for: .gitlab, server: "https://gitlab.example.org"), ["gitlab.example.org"])
+        XCTAssertEqual(NetworkGate.hosts(for: .microsoft), ["login.microsoftonline.com", "graph.microsoft.com"])
+        XCTAssertFalse(NetworkGate.isAllowed(URL(string: "http://api.github.com")!), "only https")
+    }
 
     func testNetworkItemKeepsMessageSiftShape() throws {
         let due = Date(timeIntervalSince1970: 1_800_000_000)
@@ -23,6 +72,8 @@ final class NetworkTests: XCTestCase {
         Keychain.set("glpat-test", for: DevTool.gitlab.tokenKey)
         Keychain.set("xoxp-test", for: "slack-token")
         Keychain.set("jira-test", for: DevTool.jira.tokenKey)
+        XCTAssertTrue(NetworkSources.configured.isEmpty, "network is off by default")
+        NetworkGate.allow(["gitlab.com", "slack.com"])
         XCTAssertEqual(Set(NetworkSources.configured), [.gitlab, .slack], "Jira needs a site and email too")
     }
 

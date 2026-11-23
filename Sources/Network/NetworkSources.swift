@@ -24,11 +24,12 @@ final class NetworkSources: ObservableObject {
     @Published private(set) var lastRead: Date?
     @Published private(set) var reading = false
 
-    /// Services with a key (or Microsoft sign-in) here.
+    /// Services with a key (or Microsoft sign-in) here and network allowed for their host.
     nonisolated static var configured: [MessageSource] {
-        var out = DevTool.allCases.filter(\.isConfigured).map(\.source)
-        if !(Keychain.get("slack-token") ?? "").isEmpty { out.append(.slack) }
-        if MSGraph.isSignedIn { out += [.teams, .outlook] }
+        func allowed(_ s: Service) -> Bool { NetworkGate.isAllowed(NetworkGate.hosts(for: s)) }
+        var out = DevTool.allCases.filter { $0.isConfigured && allowed(Service(rawValue: $0.rawValue)!) }.map(\.source)
+        if !(Keychain.get("slack-token") ?? "").isEmpty, allowed(.slack) { out.append(.slack) }
+        if MSGraph.isSignedIn, allowed(.microsoft) { out += [.teams, .outlook] }
         return out
     }
 
@@ -53,10 +54,10 @@ final class NetworkSources: ObservableObject {
         let since = Date().addingTimeInterval(-Double(Self.days) * 86_400)
         var all: [HubMessage] = []
         var errs: [MessageSource: String] = [:]
-        for tool in DevTool.allCases where tool.isConfigured {
+        for tool in DevTool.allCases where configured.contains(tool.source) {
             do { all += try await DevToolsClient(tool: tool).fetch(since: since) } catch { errs[tool.source] = error.localizedDescription }
         }
-        if let token = Keychain.get("slack-token"), !token.isEmpty {
+        if configured.contains(.slack), let token = Keychain.get("slack-token") {
             do { all += try await SlackSource(token: token).fetch(since: since) } catch { errs[.slack] = error.localizedDescription }
         }
         if configured.contains(.teams) {

@@ -10,6 +10,7 @@
 		06DCCEA2A284964D12BD727F /* SharedMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C5E26389F95A631076AC73F /* SharedMessage.swift */; };
 		10F99594E00D5AE7D83C93CD /* NetworkSources.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9419984C68673C9486F3D700 /* NetworkSources.swift */; };
 		13A6EF6EC74F2858E260303E /* SlackSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25F2E81A74274A35932C2174 /* SlackSource.swift */; };
+		176D47E1D3F4AC3BFD63FBFB /* NetworkGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D287049C145E75BEF32D4A5A /* NetworkGate.swift */; };
 		2EED49E6088CF0F526F8B47C /* ConnectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C3ECE5FD6F682BD638371CB /* ConnectorTests.swift */; };
 		396FD086D1983F17B853850B /* Readers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B4143FBE1A9CF4CA7B394A3 /* Readers.swift */; };
 		3CA33F7D291CBD406E3943BA /* ConnectorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45ABA34132DE5CF76F0A5E05 /* ConnectorApp.swift */; };
@@ -55,6 +56,7 @@
 		9419984C68673C9486F3D700 /* NetworkSources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkSources.swift; sourceTree = "<group>"; };
 		BD4CED0EB29F7BEDA382A7DF /* Connector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connector.swift; sourceTree = "<group>"; };
 		BE8FABFEDE0EA810B2AAD0CF /* NetworkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkTests.swift; sourceTree = "<group>"; };
+		D287049C145E75BEF32D4A5A /* NetworkGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkGate.swift; sourceTree = "<group>"; };
 		E0A0C4EA86297449CA33C33D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -97,6 +99,7 @@
 				8BD3C71B644663BC91A05A5E /* AppTypes.swift */,
 				2C1D3ABFCB2A02F461865E6F /* DevToolsSources.swift */,
 				1804E9A96926E4619CDC7165 /* MicrosoftGraph.swift */,
+				D287049C145E75BEF32D4A5A /* NetworkGate.swift */,
 				9419984C68673C9486F3D700 /* NetworkSources.swift */,
 				25F2E81A74274A35932C2174 /* SlackSource.swift */,
 				8F84FE47C29333DCE3EA05A0 /* WorkRules.swift */,
@@ -232,6 +235,7 @@
 				3CA33F7D291CBD406E3943BA /* ConnectorApp.swift in Sources */,
 				DB500CB80DEB1D54C6CB7C11 /* DevToolsSources.swift in Sources */,
 				629E0A6FD82F9819F0840768 /* MicrosoftGraph.swift in Sources */,
+				176D47E1D3F4AC3BFD63FBFB /* NetworkGate.swift in Sources */,
 				10F99594E00D5AE7D83C93CD /* NetworkSources.swift in Sources */,
 				CD2983F34C47C61C2000D41B /* NotificationParser.swift in Sources */,
 				396FD086D1983F17B853850B /* Readers.swift in Sources */,

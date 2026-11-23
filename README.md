@@ -7,9 +7,10 @@ chat store. The Connector can, with Full Disk Access. It copies recent items int
 It runs as a menu bar app with a small status window.
 
 - **Read-only:** it never writes to the databases it reads.
-- **Network only for the services you add:** without keys it makes no network connections. With a key in
-  **Services**, it reads that service's own API (Slack, GitHub, GitLab, Jira, Linear, Microsoft Graph for Teams and
-  Outlook) and nothing else. MessageSift itself has no network access.
+- **Network off by default:** WhatsApp and Mac notifications need no network, and the Connector makes no network
+  connections until you allow one. When you add a service in **Services**, it asks "Allow the Connector to connect to
+  …?" and names the host(s). Only allowed hosts are ever contacted (one gate checks every request). Turn it off per
+  service in Services. MessageSift itself has no network access at all.
 - **No AI**, no analytics, no updates, no accounts.
 
 ## Install
@@ -42,6 +43,8 @@ Menu bar icon › **Services…** (MessageSift opens it on one service when you 
 | Linear | Personal API key | Assigned issues, unread mentions and comments |
 | Teams and Outlook | Your own Azure app (client ID) and a Microsoft sign-in | Teams chats, Outlook inbox |
 
+- Before the first check of a service, the Connector asks to allow its host(s): `slack.com`, `api.github.com`, your
+  GitLab server, your Jira site, `api.linear.app`, or `login.microsoftonline.com` and `graph.microsoft.com`.
 - **Check and Save** keeps a key only when the service accepts it.
 - Keys are kept in the Connector's own Keychain items (`com.dmikaya.MessageHub.Connector`). MessageSift never gets them.
 - Read every 10 minutes, last 14 days. Items go into the same shared file, with their service as the source.
@@ -63,9 +66,10 @@ Its own settings (Pause, chosen apps) are kept in its UserDefaults. It keeps no 
 
 ## Network: how to check
 
-- All network code is in `Sources/Network/` (copied from MessageSift's readers). Nothing else connects:
-  `grep -rnE "URLSession|NWConnection|CFStream|socket\(" --include='*.swift' Sources` finds only that folder.
-- Without keys in Services, nothing in `Sources/Network/` runs. A firewall such as LuLu or Little Snitch, or `nettop`,
+- All network code is in `Sources/Network/` (copied from MessageSift's readers). Every request goes through
+  `NetworkGate` (`Sources/Network/NetworkGate.swift`), which refuses any host you have not allowed; a unit test checks
+  that nothing goes out without consent.
+- Without an allowed service, nothing in `Sources/Network/` sends anything. A firewall such as LuLu or Little Snitch, or `nettop`,
   shows no connections. With keys, it shows only the services you added.
 - The app is not sandboxed (Full Disk Access needs that), so there is no network entitlement to look for. Its only
   entitlement is the App Group shared with MessageSift (`Sources/App/Connector.entitlements`).

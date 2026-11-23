@@ -69,11 +69,43 @@ final class ServiceSelection: ObservableObject {
     @Published var service: Service = .slack
 }
 
+/// Asks once per service before the Connector contacts its host(s). Returns true when allowed.
+@MainActor
+func askNetworkConsent(for service: Service, hosts: [String]) -> Bool {
+    if NetworkGate.isAllowed(hosts) { return true }
+    guard !hosts.isEmpty else { return false }
+    let alert = NSAlert()
+    alert.messageText = "Allow the Connector to connect to \(hosts.joined(separator: " and "))?"
+    alert.informativeText = "Only \(service.title) is contacted, at \(hosts.joined(separator: " and ")), to read your items with your key. Nothing else goes out. MessageSift itself has no network access. You can turn this off in Services at any time."
+    alert.addButton(withTitle: "Allow")
+    alert.addButton(withTitle: "Don't Allow")
+    guard alert.runModal() == .alertFirstButtonReturn else { return false }
+    NetworkGate.allow(hosts)
+    return true
+}
+
 struct ServicesView: View {
     @EnvironmentObject private var selection: ServiceSelection
     @EnvironmentObject private var network: NetworkSources
+    @State private var allowed = NetworkGate.allowedHosts
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Image(systemName: allowed.isEmpty ? "network.slash" : "network")
+                Text(allowed.isEmpty ? "Network: Off" : "Network: allowed for \(allowed.sorted().joined(separator: ", "))")
+                    .lineLimit(2)
+            }
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .padding(10)
+            Divider()
+            split
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in allowed = NetworkGate.allowedHosts }
+    }
+
+    private var split: some View {
         HSplitView {
             List(Service.allCases, selection: Binding(get: { selection.service }, set: { if let s = $0 { selection.service = s } })) { s in
                 HStack {
@@ -116,6 +148,7 @@ struct ServiceDetail: View {
             Text(service.title).font(.title2.weight(.semibold))
             Text(intro).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             if service == .microsoft { microsoft } else { keyFields }
+            networkLine
             if let result { Text(result).font(.callout).foregroundStyle(failed ? Color.red : Color.green) }
             if let e = service.sources.compactMap({ network.errors[$0] }).first, result == nil {
                 Text("Last read: \(e)").font(.callout).foregroundStyle(.orange)
@@ -129,6 +162,28 @@ struct ServiceDetail: View {
     }
 
     private var count: Int { network.items.filter { service.sources.contains($0.source) }.count }
+
+    private var hosts: [String] { NetworkGate.hosts(for: service, server: server.isEmpty ? nil : server) }
+
+    /// Which host this service may contact, with a button to turn it off.
+    @ViewBuilder private var networkLine: some View {
+        let h = hosts
+        if NetworkGate.isAllowed(h) {
+            HStack {
+                Label("Network allowed for \(h.joined(separator: ", "))", systemImage: "network").font(.callout)
+                Button("Turn Off") {
+                    NetworkGate.revoke(h)
+                    result = "Network turned off for \(service.title)"
+                    failed = false
+                    Connector.shared.servicesChanged()
+                }
+            }
+        } else {
+            Label(h.isEmpty ? "Network: Off" : "Network: Off. The Connector asks before it contacts \(h.joined(separator: ", ")).",
+                  systemImage: "network.slash")
+                .font(.callout).foregroundStyle(.secondary)
+        }
+    }
 
     private var intro: String {
         switch service {
@@ -204,6 +259,11 @@ struct ServiceDetail: View {
 
     private func checkAndSave() {
         let newKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard askNetworkConsent(for: service, hosts: hosts) else {
+            result = "Not saved: the Connector may not contact \(service.title)."
+            failed = true
+            return
+        }
         working = true
         result = nil
         Task {
@@ -243,6 +303,11 @@ struct ServiceDetail: View {
     }
 
     private func signIn() {
+        guard askNetworkConsent(for: .microsoft, hosts: hosts) else {
+            result = "Not signed in: the Connector may not contact Microsoft."
+            failed = true
+            return
+        }
         MSGraph.clientID = clientID
         MSGraph.tenant = tenant
         working = true
