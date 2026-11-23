@@ -22,6 +22,7 @@ final class Connector: ObservableObject {
 
     private let defaults = UserDefaults.standard
     private var timer: Timer?
+    private var accessTimer: Timer?
     private var stream: FSEventStreamRef?
     private var pending: DispatchWorkItem?
 
@@ -38,6 +39,13 @@ final class Connector: ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: 180, repeats: true) { _ in Task { @MainActor in Connector.shared.tick() } }
         watch()
         tick()
+        // Without Full Disk Access: check every 2 seconds, and share at once when it arrives.
+        accessTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
+            Task { @MainActor in
+                let c = Connector.shared
+                if Sources.hasFullDiskAccess && !c.hasAccess { c.tick() }
+            }
+        }
     }
 
     /// Every 3 minutes and after a database change: check access, then share.
@@ -69,7 +77,7 @@ final class Connector: ObservableObject {
             await MainActor.run {
                 switch result {
                 case .success: self.counts = counts; self.lastShared = Date(); self.problem = nil
-                case .failure(let e): self.problem = e.localizedDescription
+                case .failure(let e): self.problem = "Can't write to MessageSift's shared folder: \(e.localizedDescription)"
                 }
             }
         }
